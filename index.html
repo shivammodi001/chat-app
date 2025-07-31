@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: radial-gradient(
+          ellipse at bottom,
+          #1b2735 0%,
+          #090a0f 100%
+        );
+        height: 100vh;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+
+      .star {
+        width: 2px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 50%;
+        position: absolute;
+        animation: twinkle 2s infinite ease-in-out;
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+      }
+
+      @keyframes twinkle {
+        0%, 100% {
+          opacity: 0.4;
+          transform: scale(0.7);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.3);
+        }
+      }
+
+      .moon {
+        width: 90px;
+        height: 90px;
+        background: radial-gradient(circle at 25% 25%, #f8fafc, #d1d5db);
+        border-radius: 50%;
+        position: absolute;
+        top: 30px;
+        right: 30px;
+        box-shadow: 0 0 40px 15px rgba(255, 255, 255, 0.3);
+        animation: glow 5s ease-in-out infinite alternate,
+          float 7s ease-in-out infinite;
+      }
+
+      @keyframes glow {
+        0% {
+          box-shadow: 0 0 25px 5px rgba(255, 255, 255, 0.2);
+        }
+        100% {
+          box-shadow: 0 0 60px 25px rgba(255, 255, 255, 0.5);
+        }
+      }
+
+      @keyframes float {
+        0% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-25px);
+        }
+        100% {
+          transform: translateY(0);
+        }
+      }
+
+      #star-container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+      }
+
+      .chat-container {
+        transform: scale(0.98);
+        transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+        background: rgba(17, 24, 39, 0.95);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .chat-container:hover {
+        transform: scale(1);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      }
+
+      .message {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        max-width: 75%;
+        margin-bottom: 12px;
+        padding: 10px 16px;
+        border-radius: 12px;
+        line-height: 1.5;
+      }
+
+      .message:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+      }
+
+      .gradient-text {
+        background: linear-gradient(45deg, #60a5fa, #a78bfa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+        letter-spacing: -0.025em;
+      }
+
+      .input-container {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .input-container:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+
+      input:focus {
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+        border-color: #60a5fa;
+      }
+
+      input:disabled {
+        background: rgba(75, 85, 99, 0.8);
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
+
+      button {
+        position: relative;
+        overflow: hidden;
+        font-weight: 600;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+      }
+
+      button:disabled {
+        background: rgba(75, 85, 99, 0.8);
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-2px);
+      }
+
+      button::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: width 0.4s ease, height 0.4s ease;
+      }
+
+      button:hover:not(:disabled)::after {
+        width: 250px;
+        height: 250px;
+      }
+
+      .scrollbar-custom::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .scrollbar-custom::-webkit-scrollbar-track {
+        background: rgba(31, 41, 55, 0.8);
+        border-radius: 10px;
+      }
+
+      .scrollbar-custom::-webkit-scrollbar-thumb {
+        background: rgba(107, 114, 128, 0.7);
+        border-radius: 10px;
+      }
+
+      .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+        background: rgba(107, 114, 128, 0.9);
+      }
+
+      @media (max-width: 640px) {
+        .chat-container {
+          max-width: 90%;
+          padding: 1rem;
+        }
+
+        .moon {
+          width: 60px;
+          height: 60px;
+          top: 20px;
+          right: 20px;
+        }
+
+        .message {
+          max-width: 85%;
+        }
+
+        .gradient-text {
+          font-size: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body class="flex items-center justify-center">
+    <!-- Night Sky -->
+    <div id="star-container"></div>
+    <div class="moon"></div>
+
+    <!-- Chat App UI -->
+    <div class="chat-container w-full max-w-lg p-8">
+      <h1 class="text-4xl font-bold text-center gradient-text mb-6">
+        💬 Socket Chat
+      </h1>
+      <div class="input-container flex space-x-3 mb-6">
+        <input
+          id="room_id"
+          class="flex-1 px-4 py-3 rounded-xl bg-gray-800 border border-gray-600 placeholder-gray-400 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+          placeholder="Enter Room ID (optional)"
+        />
+        <button
+          id="join"
+          class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl transition duration-200"
+        >
+          Join Chat
+        </button>
+      </div>
+
+      <div id="chat_section" class="mt-4 hidden">
+        <div
+          id="msg_display"
+          class="h-96 overflow-y-auto bg-gray-800 p-5 rounded-xl mb-4 border border-gray-700 scrollbar-custom"
+        ></div>
+        <div class="flex space-x-3 input-container">
+          <input
+            id="msg_input"
+            class="flex-1 px-4 py-3 rounded-xl bg-gray-800 border border-gray-600 placeholder-gray-400 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+            placeholder="Type message..."
+          />
+          <button
+            id="send"
+            class="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition duration-200 relative font-semibold"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- JavaScript for Stars -->
+    <script>
+      const container = document.getElementById("star-container");
+      for (let i = 0; i < 150; i++) {
+        const star = document.createElement("div");
+        star.classList.add("star");
+        star.style.top = `${Math.random() * 100}%`;
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.animationDuration = `${Math.random() * 3 + 1}s`;
+        star.style.animationDelay = `${Math.random() * 2}s`;
+        container.appendChild(star);
+      }
+    </script>
+
+    <!-- Socket.IO Script -->
+    <script>
+      const socket = io();
+      const joinBtn = document.getElementById("join");
+      const roomInput = document.getElementById("room_id");
+      const chatSection = document.getElementById("chat_section");
+      const msgDisplay = document.getElementById("msg_display");
+      const msgInput = document.getElementById("msg_input");
+      const sendBtn = document.getElementById("send");
+
+      let roomId = "";
+
+      joinBtn.addEventListener("click", () => {
+        roomId = roomInput.value.trim();
+        socket.emit("join_room", roomId); // Join room (or global if empty)
+        chatSection.classList.remove("hidden");
+        roomInput.disabled = true;
+        joinBtn.disabled = true;
+      });
+
+      sendBtn.addEventListener("click", () => {
+        const msg = msgInput.value.trim();
+        if (msg) {
+          socket.emit("message", { room: roomId, msg });
+          msgInput.value = "";
+
+          const div = document.createElement("div");
+          div.textContent = msg;
+          div.className = "message bg-green-600 text-white p-2 my-1 rounded w-fit ml-auto";
+          msgDisplay.appendChild(div);
+          msgDisplay.scrollTop = msgDisplay.scrollHeight;
+        }
+      });
+
+      socket.on("new_message", ({ msg }) => {
+        const div = document.createElement("div");
+        div.textContent = msg;
+        div.className = "message bg-blue-600 text-white p-2 my-1 rounded w-fit mr-auto";
+        msgDisplay.appendChild(div);
+        msgDisplay.scrollTop = msgDisplay.scrollHeight;
+      });
+    </script>
+  </body>
+</html>

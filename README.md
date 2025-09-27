@@ -45,7 +45,7 @@ http://localhost:3000
 
 ## 🌐 Live Demo
 
-👉 [Click to Open Live Chat App](https://chat-app-ma0l.onrender.com/)
+👉 [Click to Open Live Chat App](https://chat-app-epcp.onrender.com/)
 
 ---
 
